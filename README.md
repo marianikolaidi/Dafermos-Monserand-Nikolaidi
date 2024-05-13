@@ -5,4 +5,4 @@ To run this code: (1) install R and R Studio; (2) click on the ‘Code’ button
 
 The code generates the Figures 2, 3, B.1 and B.2. Note that you will need to install the R package ‘Cairo’ before running the code. To do so use the command: install.packages("Cairo").
 
-For more information about the DEFINE model, see here. For any questions or comments, please write to: yannis.dafermos@soas.ac.uk or m.nikolaidi@greenwich.ac.uk.
+For any questions or comments, please write to: yannis.dafermos@soas.ac.uk, antoine.monserand@univ-paris13.fr or m.nikolaidi@greenwich.ac.uk.
