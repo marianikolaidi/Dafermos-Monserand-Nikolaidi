@@ -1,0 +1,973 @@
+---
+title: "Dafermos-Monserand-Nikolaidi"
+---
+
+Time periods and number of scenarios
+
+```{r}
+rm(list=ls(all=TRUE))
+T<-100
+Scenarios<-14
+Periods<-seq(from = 1, to = T, by = 1)
+```
+
+Symbols of endogenous variables
+
+```{r}
+Symbols<- c("YD_e1","YD_e2", "YD_e1_eff", "YD_e2_eff", "H_e1", "H_e2", "ub", 
+            "UB", "YD_u", "YD_u_eff", "H_u", "WT_1", "WT_2", "C_1_u", "C_1_e1",
+            "C_1_e2", "cc_1", "C_2_u", "C_2_e1", "C_2_e2", "cc_2", "cc_2_WE", "sigma",
+            "sigma_pot", "SI", "C_1_pri", "C_2_pri", "C_pri","I_1_pri", "I_2_pri",
+            "K_1_pri","K_2_pri","FP_1","FP_2","WB_1","WB_2","NFP_1","NFP_2","RFP_1",
+            "RFP_2","DFP_1","DFP_2","Y_1","Y_2","Y","Y_1_fc","Y_2_fc","u_1","u_2","w",
+            "pr","g_pr","N_e1","N_e2","N_e","N_u","N","ur","I_I_gov_g","I_I_gov_c","I_I_gov",
+            "gov_Ig","I_II_gov","I_II_gov_g","I_II_gov_c","I_gov","K_I_gov_g","K_I_gov_c",
+            "K_II_gov","K_II_gov_g","K_II_gov_c","K_gov","C_gov","C_1_gov","C_2_gov","CO",
+            "GNS","H","H_red","DEF","DEF_Y","xi","g_xi","tau_w","tau_f","g_tau_w","g_tau_f",
+            "h","g_h","EMIS","beta_1","beta_2","YD_e","YD_e_eff","YD_ratio","YD_eff_ratio","FP",
+            "WB","K_I_gov","K_II_gov","p","I_pri","I","y","C_u","C_e1","C_e2","C_e","C_1_e",
+            "C_2_e","C_nonC_govcratio","SUM_EMIS","y_1","y_2","NFP","RFP","DFP","g_Y","g_Y_1",
+            "g_Y_2","g_I_1_pri","g_I_2_pri","g_I_pri","g_I_gov","g_I_I_gov_c","g_I_I_gov_g",
+            "g_I_II_gov_c","g_I_II_gov_g","g_K_pri","g_K_1_pri","g_K_2_pri","g_K_I_gov",
+            "g_K_I_gov_c","g_K_I_gov_g","g_K_II_gov_c","g_K_II_gov_g","g_K_II_gov","g_C_1_pri",
+            "g_C_2_pri","g_C_pri","g_C_1u","g_C_1e1","g_C_1e2","g_C_2u","g_C_2e1","g_C_2e2",
+            "g_YD_e1","g_YD_e2","g_YD_u","g_H_u","g_H_e1","g_H_e2","K","K_pri","r_1","r_2",
+            "H_Y","C_1_e1_N_e1","C_1_e2_N_e2","C_1_u_N_u","C_2_e1_N_e1","C_2_e2_N_e2",
+            "C_2_u_N_u","g_Y_per","ur_per","DEF_Y_per","H_Y_per","I_I_gov_g_change",
+            "I_II_gov_g_change","C_2_change","YDeffe1_Ne1","YDeffe2_Ne2","YDeffe_Ne",
+            "YDeffu_Nu","KpgI_KpI","KpgII_KpII","g_YD_u_eff","g_YD_e1_eff","g_YD_e2_eff",
+            "I_I_gov_g_cum","I_II_gov_g_cum","C_2_cum","r_1_per","r_2_per","IG","I_gov_g","gov_Ig",
+            "g_DFP_1","g_DFP_2","g_DFP","H_f1","H_f2","g_H_f1","g_H_f2")
+```
+
+Equations
+
+```{r}
+Equations<-function(t){
+  ###########
+  #Households
+  ###########
+  YD_e1[t]<<-(1-tau_w[t])*WB_1[t] + DFP_1[t] #Eq. (1)
+  YD_e2[t]<<-(1-tau_w[t])*WB_2[t] + DFP_2[t] #Eq. (1)
+  YD_e1_eff[t]<<-YD_e1[t] - N_e1[t]*(cc_1[t]+cc_2[t]) #Eq. (2)
+  YD_e2_eff[t]<<-YD_e2[t] - N_e2[t]*(cc_1[t]+cc_2[t]) #Eq. (2)
+  H_e1[t]<<-H_e1[t-1] + YD_e1[t] - C_e1[t] + WT_1[t] #Eq. (3)
+  H_e2[t]<<-H_e2[t-1] + YD_e2[t] - C_e2[t] + WT_2[t] #Eq. (3)
+  
+  ub[t]<<-xi[t]*w[t]*h[1] #Eq. (4)
+  UB[t]<<-N_u[t]*ub[t] #Eq. (5)
+  YD_u[t]<<-UB[t] #Eq. (6)
+  YD_u_eff[t]<<-YD_u[t] - N_u[t]*(cc_1[t]+cc_2[t]) #Eq. (7)
+  H_u[t]<<-H_u[t-1] + YD_u[t] - C_u[t]- (WT_1[t] + WT_2[t]) #Eq. (8)
+  
+  #### Wealth transfers between categories of households
+  # Transfers between unemployed and employed in sector 1
+  if (N_e1[t] < N_e1[t-1]){
+  WT_1[t]<<-(N_e1[t] - N_e1[t-1])*H_e1[t-1]/N_e1[t-1] #Eq. (9)
+  }
+  if (N_e1[t] > N_e1[t-1]){
+  WT_1[t]<<-(N_e1[t] - N_e1[t-1])*H_u[t-1]/N_u[t-1] #Eq. (9)
+  }
+  if (N_e1[t] == N_e1[t-1]){
+  WT_1[t]<<-0 #Eq. (9)
+  }
+  # Transfers between unemployed and employed in sector 2
+  if (N_e2[t] < N_e2[t-1]){
+  WT_2[t]<<-(N_e2[t] - N_e2[t-1])*H_e2[t-1]/N_e2[t-1] #Eq. (9)
+  }
+  if (N_e2[t] > N_e2[t-1]){
+  WT_2[t]<<-(N_e2[t] - N_e2[t-1])*H_u[t-1]/N_u[t-1] #Eq. (9)
+  }
+  if (N_e2[t] == N_e2[t-1]){
+  WT_2[t]<<-0 #Eq. (9)
+  }
+  
+  C_1_u[t]<<-N_u[t]*(cc_1[t] + c_yde_u*YD_u_eff[t-1]*(1+g_Y[t-1])/N_u[t]+ c_h_u*H_u[t-1]*(1+g_Y[t-1])/N_u[t]) #Eq. (10)
+  C_1_e1[t]<<-N_e1[t]*(cc_1[t] + c_yde_e1*YD_e1_eff[t-1]*(1+g_Y[t-1])/N_e1[t]+ c_h_e1*H_e1[t-1]*(1+g_Y[t-1])/N_e1[t]) #Eq. (10)
+  C_1_e2[t]<<-N_e2[t]*(cc_1[t] + c_yde_e2*YD_e2_eff[t-1]*(1+g_Y[t-1])/N_e2[t]+ c_h_e2*H_e2[t-1]*(1+g_Y[t-1])/N_e2[t])  #Eq. (10)
+  cc_1[t]<<-cc_1[t-1]*(1+g_0)  #Eq. (11)         
+  
+  C_2_u[t]<<-N_u[t]*cc_2[t] #Eq. (12)
+  C_2_e1[t]<<-N_e1[t]*cc_2[t] #Eq. (12)
+  C_2_e2[t]<<-N_e2[t]*cc_2[t] #Eq. (12)
+  cc_2_WE[t]<<-cc_2_WE[t-1]*(1+g_0)   #Eq. (13)   
+  cc_2[t]<<-cc_2_WE[t]*(1-sigma[t]) #Eq. (14)   
+  sigma_pot[t]<<-sigma_conv_only*(1+sigma_sens*K_I_gov_g[t-1]/K_I_gov[t-1]) #Eq. (15)   
+  sigma[t]<<-SI[t]*sigma_pot[t] #Eq. (16)   
+  
+  if ((j==5 & i==10) |(j==6 & i==10))
+  {SI[t]<<-SI[10]}  
+  else
+  {SI[t]<<-SI[t-1] + ((1-SI[1])/duration_GND)*dummy_sigma}
+  
+  C_u[t]<<-C_1_u[t] + C_2_u[t] #Eq. (17) 
+  C_e1[t]<<-C_1_e1[t] + C_2_e1[t] #Eq. (17) 
+  C_e2[t]<<-C_1_e2[t] + C_2_e2[t] #Eq. (17) 
+  
+  C_1_pri[t]<<-C_1_e1[t] + C_1_e2[t] + C_1_u[t] #Eq. (18)   
+  C_2_pri[t]<<-C_2_e1[t] + C_2_e2[t] + C_2_u[t] #Eq. (19)   
+  C_pri[t]<<-C_1_pri[t] + C_2_pri[t] #Eq. (20)   
+  
+  ######
+  #Firms
+  ######
+  I_1_pri[t]<<-(alpha_01 + alpha_1*(u_1[t-1]-u_T))*K_1_pri[t-1] + delta_f*K_1_pri[t-1] #Eq. (21)   
+  I_2_pri[t]<<-(alpha_02 + alpha_1*(u_2[t-1]-u_T))*K_2_pri[t-1] + delta_f*K_2_pri[t-1] #Eq. (21)   
+  K_1_pri[t]<<-K_1_pri[t-1] + I_1_pri[t] - delta_f*K_1_pri[t-1] #Eq. (22)   
+  K_2_pri[t]<<-K_2_pri[t-1] + I_2_pri[t] - delta_f*K_2_pri[t-1] #Eq. (22)   
+  
+  FP_1[t]<<-Y_1[t] - WB_1[t] #Eq. (23)   
+  FP_2[t]<<-Y_2[t] - WB_2[t] #Eq. (23)   
+  WB_1[t]<<-N_e1[t]*w[t]*h[t] #Eq. (24)   
+  WB_2[t]<<-N_e2[t]*w[t]*h[t] #Eq. (24)   
+  WB[t]<<-WB_1[t] + WB_2[t] #Eq. (25) 
+  NFP_1[t]<<-FP_1[t] - tau_f[t]*WB_1[t] - delta_f*K_1_pri[t-1] #Eq. (26)   
+  NFP_2[t]<<-FP_2[t] - tau_f[t]*WB_2[t] - delta_f*K_2_pri[t-1] #Eq. (26)   
+  
+  RFP_1[t]<<-s_f_1*NFP_1[t-1] #Eq. (27)   
+  RFP_2[t]<<-s_f_2*NFP_2[t-1]  #Eq. (27) 
+  
+  DFP_1[t]<<-NFP_1[t] - RFP_1[t] #Eq. (28)   
+  DFP_2[t]<<-NFP_2[t] - RFP_2[t] #Eq. (28)  
+  
+  H_f1[t]<<-H_f1[t-1]-I_1_pri[t]+delta_f*K_1_pri[t-1]+RFP_1[t] #Eq. (29) 
+  H_f2[t]<<-H_f2[t-1]-I_2_pri[t]+delta_f*K_2_pri[t-1]+RFP_2[t] #Eq. (29) 
+  
+  I_pri[t]<<-I_1_pri[t] + I_2_pri[t] #Eq. (30) 
+  I[t]<<-I_pri[t] + I_gov[t] #Eq. (31) 
+  
+  Y_1[t]<<-C_1_pri[t] + I_1_pri[t] + C_1_gov[t]  #Eq. (32)   
+  Y_2[t]<<-C_2_pri[t] + I_2_pri[t] + C_2_gov[t] + I_gov[t] #Eq. (33)   
+  Y[t]<<-Y_1[t] + Y_2[t] #Eq. (34)   
+  
+  Y_1_fc[t]<<-K_1_pri[t]/v_1 #Eq. (35)   
+  Y_2_fc[t]<<-K_2_pri[t]/v_2 #Eq. (35)   
+  u_1[t]<<-Y_1[t]/Y_1_fc[t] #Eq. (36)   
+  u_2[t]<<-Y_2[t]/Y_2_fc[t] #Eq. (36)   
+  
+  w[t]<<-pr[t]*s_w #Eq. (37)   
+  pr[t]<<-pr[t-1]*(1+g_pr[t])  #Eq. (38)   
+  g_pr[t]<<-pr_0+pr_1*g_Y[t]     #Eq. (39)     
+  
+  N_e1[t]<<-Y_1[t-1]/(h[t]*pr[t-1]) #Eq. (40)   
+  N_e2[t]<<-Y_2[t-1]/(h[t]*pr[t-1]) #Eq. (40)   
+  N_e[t]<<-N_e1[t] + N_e2[t] #Eq. (41)   
+  N_u[t]<<-N[t] - N_e[t] #Eq. (42)   
+  N[t]<<-N[t-1] #Eq. (17) 
+  ur[t]<<-N_u[t]/N[t] #Eq. (38)   
+  
+  ##############
+  #Public sector
+  ##############
+  if ((j==2 & i==10) |(j==4 & i==10) |(j==6 & i==10))
+   {gov_Ig[t]<<-gov_Ig[10]}  
+   else
+   {gov_Ig[t]<<-gov_Ig[t-1]-((gov_Ig[10]-gov_Ig[1])/(duration_GND))*dummy_govgi}
+  
+  I_I_gov_g[t]<<-gov_Ig[t]*K_I_gov_g[t-1] + delta_pg*K_I_gov_g[t-1] + dummy_govgi_dep*delta_pc*K_I_gov_c[t-1] #Eq. (44)   
+  I_I_gov_c[t]<<-gov_Ic*K_I_gov_c[t-1] + delta_pc*K_I_gov_c[t-1]-dummy_govgi_dep*delta_pc*K_I_gov_c[t-1]  #Eq. (45)  
+  I_I_gov[t]<<-I_I_gov_g[t] + I_I_gov_c[t] #Eq. (46)   
+  
+  I_II_gov[t]<<-gov_II*K_II_gov[t-1] + delta_pc*K_II_gov_c[t-1] + delta_pg*K_II_gov_g[t-1]  #Eq. (47)   
+  I_II_gov_g[t]<<-lambda*I_II_gov[t] #Eq. (48)   
+  I_II_gov_c[t]<<-I_II_gov[t] - I_II_gov_g[t] #Eq. (49)   
+  
+  I_gov[t]<<-I_I_gov[t] + I_II_gov[t] #Eq. (50)   
+  
+  K_I_gov_c[t]<<-K_I_gov_c[t-1] + I_I_gov_c[t]- delta_pc*K_I_gov_c[t-1]  #Eq. (51)   
+  K_II_gov_c[t]<<-K_II_gov_c[t-1] + I_II_gov_c[t]-delta_pc*K_II_gov_c[t-1] #Eq. (51)   
+  
+  K_I_gov_g[t]<<-K_I_gov_g[t-1] + I_I_gov_g[t]-delta_pg*K_I_gov_g[t-1]   #Eq. (52)   
+  K_II_gov_g[t]<<-K_II_gov_g[t-1] + I_II_gov_g[t]-delta_pg*K_II_gov_g[t-1] #Eq. (52)   
+  
+  K_gov[t]<<-K_I_gov_c[t] + K_I_gov_g[t]+ K_II_gov_c[t] + K_II_gov_g[t] #Eq. (53)   
+  
+  C_gov[t]<<-gov*Y[t-1]  #Eq. (54)   
+  C_1_gov[t]<<-prop_C_1_gov*C_gov[t]  #Eq. (55)   
+  C_2_gov[t]<<-C_gov[t] - C_1_gov[t]   #Eq. (56)   
+  
+  CO[t]<<-(tau_w[t]+tau_f[t])*WB[t] #Eq. (57)   
+  
+  GNS[t]<<-CO[t] - UB[t] - delta_f*K_gov[t-1] - C_gov[t]  #Eq. (58)           
+  H[t]<<-H[t-1] - GNS[t] + I_gov[t] - delta_f*K_gov[t-1]  #Eq. (59)   
+  H_red[t]<<-H_u[t]+H_e1[t]+H_e2[t]+H_f1[t]+H_f2[t] #Eq. (60)   
+  DEF[t]<<-H[t] - H[t-1] #Eq. (61)           
+  DEF_Y[t]<<-DEF[t]/Y[t]  #Eq. (62)   
+
+  h[t]<<-h[t-1]*(1+g_h[t]) #Eq. (63)   
+  g_h[t]<<-min(0,eta_h*(ur[t-1] - ur_T)) #Eq. (64)       
+  
+  EMIS[t]<<-beta_1[t]*Y_1[t] + beta_2[t]*Y_2[t] #Eq. (65)   
+  beta_1[t]<<-beta_1_conv_only/(1+beta_sens*K_II_gov_g[t-1]/K_II_gov[t-1]) #Eq. (66)   
+  beta_2[t]<<-beta_2_conv_only/(1+beta_sens*K_II_gov_g[t-1]/K_II_gov[t-1])  #Eq. (66)  
+  
+  YD_ratio[t]<<-((YD_e1[t] + YD_e2[t])/N_e[t])/(YD_u[t]/N_u[t]) #Eq. (67)   
+  YD_eff_ratio[t]<<-((YD_e1_eff[t] + YD_e2_eff[t])/N_e[t])/(YD_u_eff[t]/N_u[t]) #Eq. (68)   
+  
+  #####################
+  # Auxiliary variables
+  #####################
+  I_gov_g[t]<<-I_I_gov_g[t]+I_II_gov_g[t]
+  YD_e[t]<<-YD_e1[t] + YD_e2[t]
+  YD_e_eff[t]<<-YD_e1_eff[t] + YD_e2_eff[t]
+  FP[t]<<-FP_1[t] + FP_2[t]
+  K_I_gov[t]<<-K_I_gov_c[t] + K_I_gov_g[t] 
+  K_II_gov[t]<<-K_II_gov_c[t] + K_II_gov_g[t]
+  p[t]<<-(1+phi)*w[t]/pr[t]
+  y[t]<<-Y[t]/p[t]
+  C_e[t]<<-C_e1[t] + C_e2[t]
+  C_1_e[t]<<-C_1_e1[t] + C_1_e2[t]
+  C_2_e[t]<<-C_2_e1[t] + C_2_e2[t]
+  C_nonC_govcratio[t]<<-((C_1_e[t]-N_e[t]*cc_1[t])/N_e[t])/((C_1_u[t]-N_u[t]*cc_1[t])/N_u[t]) 
+  SUM_EMIS[t]<<-SUM_EMIS[t-1] + EMIS[t] 
+  y_1[t]<<-Y_1[t]/p[t]
+  y_2[t]<<-Y_2[t]/p[t]
+  NFP[t]<<-NFP_1[t] + NFP_2[t]
+  RFP[t]<<-RFP_1[t] + RFP_2[t]
+  DFP[t]<<-DFP_1[t] + DFP_2[t]
+  g_Y[t]<<-(Y[t]-Y[t-1])/Y[t-1]
+  g_Y_1[t]<<-(Y_1[t]-Y_1[t-1])/Y_1[t-1]
+  g_Y_2[t]<<-(Y_2[t]-Y_2[t-1])/Y_2[t-1]
+  g_I_1_pri[t]<<-(I_1_pri[t]-I_1_pri[t-1])/I_1_pri[t-1]
+  g_I_2_pri[t]<<-(I_2_pri[t]-I_2_pri[t-1])/I_2_pri[t-1]
+  g_I_pri[t]<<-(I_pri[t]-I_pri[t-1])/I_pri[t-1]
+  g_I_gov[t]<<-(I_gov[t]-I_gov[t-1])/I_gov[t-1]
+  g_I_I_gov_c[t]<<-(I_I_gov_c[t]-I_I_gov_c[t-1])/I_I_gov_c[t-1]
+  g_I_I_gov_g[t]<<-(I_I_gov_g[t]-I_I_gov_g[t-1])/I_I_gov_g[t-1]
+  g_I_II_gov_c[t]<<-(I_II_gov_c[t]-I_II_gov_c[t-1])/I_II_gov_c[t-1]
+  g_I_II_gov_g[t]<<-(I_II_gov_g[t]-I_II_gov_g[t-1])/I_II_gov_g[t-1]
+  g_K_pri[t]<<-(K_pri[t]-K_pri[t-1])/K_pri[t-1]
+  g_K_1_pri[t]<<-(K_1_pri[t]-K_1_pri[t-1])/K_1_pri[t-1]
+  g_K_2_pri[t]<<-(K_2_pri[t]-K_2_pri[t-1])/K_2_pri[t-1]
+  g_K_I_gov[t]<<-(K_I_gov[t]-K_I_gov[t-1])/K_I_gov[t-1]
+  g_K_I_gov_c[t]<<-(K_I_gov_c[t]-K_I_gov_c[t-1])/K_I_gov_c[t-1]
+  g_K_I_gov_g[t]<<-(K_I_gov_g[t]-K_I_gov_g[t-1])/K_I_gov_g[t-1]
+  g_K_II_gov_c[t]<<-(K_II_gov_c[t]-K_II_gov_c[t-1])/K_II_gov_c[t-1]
+  g_K_II_gov_g[t]<<-(K_II_gov_g[t]-K_II_gov_g[t-1])/K_II_gov_g[t-1]
+  g_K_II_gov[t]<<-(K_II_gov[t]-K_II_gov[t-1])/K_II_gov[t-1]
+  g_C_1_pri[t]<<-(C_1_pri[t]-C_1_pri[t-1])/C_1_pri[t-1]
+  g_C_2_pri[t]<<-(C_2_pri[t]-C_2_pri[t-1])/C_2_pri[t-1]
+  g_C_pri[t]<<-(C_pri[t]-C_pri[t-1])/C_pri[t-1]
+  g_C_1u[t]<<-(C_1_u[t]-C_1_u[t-1])/C_1_u[t-1]
+  g_C_1e1[t]<<-(C_1_e1[t]-C_1_e1[t-1])/C_1_e1[t-1]
+  g_C_1e2[t]<<-(C_1_e2[t]-C_1_e2[t-1])/C_1_e2[t-1]
+  g_C_2u[t]<<-(C_2_u[t]-C_2_u[t-1])/C_2_u[t-1]
+  g_C_2e1[t]<<-(C_2_e1[t]-C_2_e1[t-1])/C_2_e1[t-1]
+  g_C_2e2[t]<<-(C_2_e2[t]-C_2_e2[t-1])/C_2_e2[t-1]
+  g_YD_e1[t]<<-(YD_e1[t]-YD_e1[t-1])/YD_e1[t-1]
+  g_YD_e2[t]<<-(YD_e2[t]-YD_e2[t-1])/YD_e2[t-1]
+  g_YD_u[t]<<-(YD_u[t]-YD_u[t-1])/YD_u[t-1]
+  g_H_u[t]<<-(H_u[t]-H_u[t-1])/H_u[t-1]
+  g_H_e1[t]<<-(H_e1[t]-H_e1[t-1])/H_e1[t-1]
+  g_H_e2[t]<<-(H_e2[t]-H_e2[t-1])/H_e2[t-1]
+  g_H_f1[t]<<-(H_f1[t]-H_f1[t-1])/H_f1[t-1]
+  g_H_f2[t]<<-(H_f2[t]-H_f2[t-1])/H_f2[t-1]
+  g_DFP_1[t]<<-(DFP_1[t]-DFP_1[t-1])/DFP_1[t-1]
+  g_DFP_2[t]<<-(DFP_2[t]-DFP_2[t-1])/DFP_2[t-1]
+  g_DFP[t]<<-(DFP[t]-DFP[t-1])/DFP[t-1]
+  K[t]<<-K_pri[t]+K_gov[t]
+  K_pri[t]<<-K_1_pri[t]+K_2_pri[t]
+  r_1[t]<<-FP_1[t]/K_1_pri[t]
+  r_2[t]<<-FP_2[t]/K_2_pri[t]
+  H_Y[t]<<-H[t]/Y[t]
+  C_1_e1_N_e1[t]<<-C_1_e1[t]/N_e1[t]
+  C_1_e2_N_e2[t]<<-C_1_e2[t]/N_e2[t]
+  C_1_u_N_u[t]<<-C_1_u[t]/N_u[t]
+  C_2_e1_N_e1[t]<<-C_2_e1[t]/N_e1[t]
+  C_2_e2_N_e2[t]<<-C_2_e2[t]/N_e2[t]
+  C_2_u_N_u[t]<<-C_2_u[t]/N_u[t]
+  g_Y_per[t]<<-(Y[t]-Y[t-1])/Y[t-1]*100
+  ur_per[t]<<-ur[t]*100
+  DEF_Y_per[t]<<-DEF_Y[t]*100
+  H_Y_per[t]<<-H_Y[t]*100
+  I_I_gov_g_change[t]<<-(I_I_gov_g[t] - I_I_gov_g[t-1])/I_I_gov_g[t-1]*100
+  I_II_gov_g_change[t]<<-(I_II_gov_g[t] - I_II_gov_g[t-1])/I_II_gov_g[t-1]*100
+  C_2_change[t]<<-(C_2_pri[t] - C_2_pri[t-1])/C_2_pri[t-1]*100
+  YDeffe1_Ne1[t]<<-YD_e1_eff[t]/N_e1[t]
+  YDeffe2_Ne2[t]<<-YD_e2_eff[t]/N_e2[t]
+  YDeffe_Ne[t]<<-(YD_e1_eff[t]+YD_e2_eff[t])/N_e[t]
+  YDeffu_Nu[t]<<-YD_u_eff[t]/N_u[t]
+  KpgI_KpI[t]<<-K_I_gov_g[t]/K_I_gov[t]
+  KpgII_KpII[t]<<-K_II_gov_g[t]/K_II_gov[t]
+  g_YD_u_eff[t]<<-(YD_u_eff[t]-YD_u_eff[t-1])/YD_u_eff[t-1]
+  g_YD_e1_eff[t]<<-(YD_e1_eff[t]-YD_e1_eff[t-1])/YD_e1_eff[t-1]
+  g_YD_e2_eff[t]<<-(YD_e2_eff[t]-YD_e2_eff[t-1])/YD_e2_eff[t-1]
+  I_I_gov_g_cum[t]<<-I_I_gov_g_cum[t-1]+I_I_gov_g[t]
+  I_II_gov_g_cum[t]<<-I_II_gov_g_cum[t-1]+I_II_gov_g[t]
+  C_2_cum[t]<<-C_2_cum[t-1]+C_2_pri[t]
+  r_1_per[t]<<-r_1[t]*100
+  r_2_per[t]<<-r_2[t]*100
+  xi[t]<<-xi[t-1]*(1+g_xi[t]) 
+  g_xi[t]<<-eta_xi*(DEF_Y[t-1] - DEF_Y_bar)    
+  tau_w[t]<<-tau_w[t-1]*(1+g_tau_w[t])   
+  g_tau_w[t]<<-eta_tau_w*(DEF_Y[t-1] - DEF_Y_bar)   
+  tau_f[t]<<-tau_f[t-1]*(1+g_tau_f[t])    
+  g_tau_f[t]<<-eta_tau_f*(DEF_Y[t-1] - DEF_Y_bar) 
+}
+```
+
+Parameters and initial values
+
+```{r}
+Parameters_InitialValues<-function(){
+  g_0<<-0.01 
+  prop_I<<-0.25 #proportion of total investment in Y 
+  gov<<-0.21 #proportion of government spending in Y 
+  prop_I_pri<<-0.88 #proportion of private investment in total I
+  prop_C2<<-0.42 #share of C_2 to C_pri 
+  prop_I2<<-0.42 #share of I_2_pri to I_pri 
+  prop_C_1_gov<<-0.5 #proportion of C_1_gov in C_gov
+  prop_I_II_gov<<-0.5 #proportion of type I_II_gov in I_gov 
+  prop_C1_u<<-0.05 #proportion of C1_u in C_1_pri
+  prop_C1_e1<<-0.5 #proportion of C1_e1 in C_1_pri
+  prop_H_u<<-0.01
+  prop_H_f1<<-0.05
+    
+  DEF_Y_bar<<-DEF_Y[1]
+  ur_T<<-ur[1]
+  u_T<<-u_1[1]
+  eta_h<<-0    
+  duration_GND<<-40    
+  dummy_govgi<<-0
+  dummy_sigma<<-0
+  dummy_govgi_dep<<-0
+  
+  delta_pg<<-0.05 
+  delta_f<<-delta_pg        
+  delta_pc<<-delta_pg 
+  s_w<<-0.58
+  N[1]<<-0.193 #billion people
+  h[1]<<-1611
+  
+  v_1<<-(u_1[1]*K_1_pri[1])/Y_1[1]
+  v_2<<-(u_2[1]*K_2_pri[1])/Y_2[1]
+  lambda<<-I_II_gov_g[1]/I_II_gov[1]
+  
+  c_h_u<<-0.02      
+  c_h_e1<<-0.02
+  c_h_e2<<-0.02
+  
+  c_yde_e1<<-(C_1_e1[1]/N_e1[1]-cc_1[1]-c_h_e1*H_e1[1]/N_e1[1])/(YD_e1_eff[1]/N_e1[1])
+  c_yde_e2<<-(C_1_e2[1]/N_e2[1]-cc_1[1]-c_h_e2*H_e2[1]/N_e2[1])/(YD_e2_eff[1]/N_e2[1])
+  c_yde_u<<-(C_1_u[1]/N_u[1]-cc_1[1]-c_h_u*H_u[1]/N_u[1])/(YD_u_eff[1]/N_u[1])
+  
+  alpha_01<<-I_1_pri[1]/(K_1_pri[1]/(1+g_0)) - alpha_1*(u_1[1]-u_T)- delta_f 
+  alpha_02<<-I_2_pri[1]/(K_2_pri[1]/(1+g_0)) - alpha_1*(u_2[1]-u_T)- delta_f 
+  
+  s_f_1<<-(H_f1[1]*(g_0)/(1+g_0)+I_1_pri[1]-delta_f*K_1_pri[1]/(1+g_0))/(NFP_1[1]/(1+g_0))
+  s_f_2<<-0.2
+  
+  beta2_higher_beta1<<-4
+  beta_1_lower_limit<<-0.6
+  beta_sens<<-(1/beta_1_lower_limit)-1 
+  beta_1_conv_only<<-EMIS[1]/((Y_1[1]+beta2_higher_beta1*Y_2[1])/((1+beta_sens*K_II_gov_g[1]/K_II_gov[1])))
+  beta_2_conv_only<<-beta2_higher_beta1*beta_1_conv_only 
+
+  sigma_conv_only<<-0.3   
+  sigma_sens<<-sigma_pot_max/sigma_conv_only - 1 
+  
+  gov_II<<-I_II_gov[1]/(K_II_gov[1]/(1+g_0))-delta_pc*(K_II_gov_c[1]/K_II_gov[1])-delta_pg*(K_II_gov_g[1]/K_II_gov[1])  
+  gov_Ic<<-(I_I_gov_c[1]-delta_pc*K_I_gov_c[1]/(1+g_0))/(K_I_gov_c[1]/(1+g_0))
+  gov_Ig[1]<<-(I_I_gov_g[1]-delta_pg*K_I_gov_g[1]/(1+g_0))/(K_I_gov_g[1]/(1+g_0))
+  
+  pr_1<<-0.825  
+  pr_0<<-g_pr[1]-pr_1*g_Y[1] 
+  
+  xi[1]<<-(g_0/(1+g_0)*H_u[1]+C_u[1]+WT_1[1]+WT_2[1])/(N_u[1]*w[1]*h[1])
+  tau_w[1]<<-(-tau_f[1]*WB[1]+UB[1]+I_gov[1]+C_gov[1]-(H[1]*g_0)/(1+g_0))/WB[1] 
+  tau_f[1]<<-0.1
+  
+  #Initial values
+  #Households
+  YD_e1[1]<<-(1-tau_w[1])*WB_1[1] + DFP_1[1]
+  YD_e2[1]<<-(1-tau_w[1])*WB_2[1] + DFP_2[1]
+  YD_e1_eff[1]<<-YD_e1[1] - N_e1[1]*(cc_1[1]+cc_2[1])
+  YD_e2_eff[1]<<-YD_e2[1] - N_e2[1]*(cc_1[1]+cc_2[1])
+  H_e1[1]<<-((1+g_0)/(g_0))*(YD_e1[1]-C_e1[1]+WT_1[1]) 
+  H_e2[1]<<-((1+g_0)/(g_0))*(YD_e2[1]-C_e2[1]+WT_2[1])
+  
+  ub[1]<<-xi[1]*w[1]*h[1]
+  UB[1]<<-N_u[1]*ub[1]
+  
+  YD_u[1]<<-UB[1]
+  YD_u_eff[1]<<-YD_u[1] - N_u[1]*(cc_1[1]+cc_2[1])
+  H_u[1]<<-prop_H_u*H[1]
+  
+  WT_1[1]<<-0 
+  WT_2[1]<<-0 
+  
+  C_1_u[1]<<-prop_C1_u*C_1_pri[1]
+  C_1_e1[1]<<-prop_C1_e1*C_1_pri[1]
+  C_1_e2[1]<<-C_1_pri[1] - C_1_u[1] - C_1_e1[1]
+  
+  cc_1[1]<<-prop_cc1*C_1_pri[1]/N[1]
+  
+  C_2_u[1]<<-N_u[1]*cc_2[1]
+  C_2_e1[1]<<-N_e1[1]*cc_2[1]
+  C_2_e2[1]<<-C_2_pri[1] - C_2_u[1] - C_2_e1[1] 
+  
+  cc_2_WE[1]<<-C_2_pri[1]/((1-sigma[1])*N[1])
+  cc_2[1]<<-cc_2_WE[1]*(1-sigma[1])
+  sigma_pot[1]<<-sigma_conv_only*(1+sigma_sens*K_I_gov_g[1]/K_I_gov[1])
+  sigma[1]<<-SI[1]*sigma_pot[1]
+  SI[1]<<-0.1
+  
+  C_u[1]<<-C_1_u[1] + C_2_u[1]
+  C_e1[1]<<-C_1_e1[1] + C_2_e1[1]
+  C_e2[1]<<-C_1_e2[1] + C_2_e2[1]
+  
+  C_1_pri[1]<<-C_pri[1]-C_2_pri[1] 
+  C_2_pri[1]<<-prop_C2*C_pri[1]
+  C_pri[1]<<-Y[1]-I[1]-C_gov[1]
+  
+  #Firms
+  I[1]<<-prop_I*Y[1] 
+  IG[1]<<-(Y[1]/(96.1*0.91))*0.76  #helpful variable; 0.76 is green investment, global; 96.1 is global output, 0.91 is exchange rate
+  
+  I_pri[1]<<-prop_I_pri*I[1] 
+  I_1_pri[1]<<-I_pri[1] - I_2_pri[1]
+  I_2_pri[1]<<-prop_I2*I_pri[1] 
+  
+  K_1_pri[1]<<-(I_1_pri[1]*(1+g_0))/(g_0+delta_f)
+  K_2_pri[1]<<-(I_2_pri[1]*(1+g_0))/(g_0+delta_f)
+  
+  FP_1[1]<<-Y_1[1] - WB_1[1]
+  FP_2[1]<<-Y_2[1] - WB_2[1]
+  WB_1[1]<<-N_e1[1]*w[1]*h[1]
+  WB_2[1]<<-N_e2[1]*w[1]*h[1]
+  WB[1]<<-WB_1[1] + WB_2[1]
+  NFP_1[1]<<-FP_1[1] - tau_f[1]*WB_1[1] - delta_f*K_1_pri[1]/(1+g_0) 
+  NFP_2[1]<<-FP_2[1] - tau_f[1]*WB_2[1] - delta_f*K_2_pri[1]/(1+g_0)
+  
+  RFP_1[1]<<-s_f_1*NFP_1[1]/(1+g_0)   
+  RFP_2[1]<<-s_f_2*NFP_2[1]/(1+g_0)    
+  
+  DFP_1[1]<<-NFP_1[1] - RFP_1[1]
+  DFP_2[1]<<-NFP_2[1] - RFP_2[1]
+  
+  H_f1[1]<<-prop_H_f1*H[1]
+  H_f2[1]<<-H[1]-H_e1[1]-H_e2[1]-H_u[1]-H_f1[1]
+  
+  Y_1[1]<<-C_1_pri[1]+I_1_pri[1]+C_1_gov[1]
+  Y_2[1]<<-C_2_pri[1]+I_2_pri[1]+C_2_gov[1]+I_gov[1]
+  Y[1]<<-15.91
+  
+  Y_1_fc[1]<<-K_1_pri[1]/v_1
+  Y_2_fc[1]<<-K_2_pri[1]/v_2
+  u_1[1]<<-0.81
+  u_2[1]<<-0.81
+  
+  w[1]<<-pr[1]*s_w
+  pr[1]<<-Y[1]/(h[1]*N_e[1])
+  g_pr[1]<<-g_Y[1]
+  
+  N_e1[1]<<-Y_1[1]/(h[1]*pr[1])
+  N_e2[1]<<-N_e[1]-N_e1[1]
+  N_e[1]<<-(1-ur[1])*N[1] 
+  N_u[1]<<-N[1] - N_e[1]
+  ur[1]<<-0.062
+  
+  #Public sector
+  I_gov_g[1]<<-(1-prop_I_pri)*IG[1] #helpful variable
+  
+  I_I_gov_g[1]<<-I_gov_g[1]-I_II_gov_g[1] #helpful equation
+  I_I_gov_c[1]<<-I_I_gov[1]-I_I_gov_g[1]
+  I_I_gov[1]<<-I_gov[1]-I_II_gov[1]
+  
+  I_II_gov[1]<<-prop_I_II_gov*I_gov[1]
+  I_II_gov_g[1]<<-prop_I_II_gov*I_gov_g[1]
+  I_II_gov_c[1]<<-I_II_gov[1]-I_II_gov_g[1]
+  
+  I_gov[1]<<-I[1]-I_pri[1]
+  
+  K_I_gov_c[1]<<-(I_I_gov_c[1]*(1+g_0))/(g_0+delta_pc)   
+  K_II_gov_c[1]<<-(I_II_gov_c[1]*(1+g_0))/(g_0+delta_pc)
+  K_I_gov_g[1]<<-(I_I_gov_g[1]*(1+g_0))/(g_0+delta_pg) 
+  K_II_gov_g[1]<<-(I_II_gov_g[1]*(1+g_0))/(g_0+delta_pg)  
+  
+  K_gov[1]<<-K_I_gov_c[1] + K_I_gov_g[1] + K_II_gov_c[1] + K_II_gov_g[1]
+  
+  C_gov[1]<<-gov*(Y[1]/(1+g_0)) 
+  C_1_gov[1]<<-prop_C_1_gov*C_gov[1]  
+  C_2_gov[1]<<-C_gov[1]-C_1_gov[1]  
+  
+  CO[1]<<-(tau_w[1]+tau_f[1])*WB[1] 
+  
+  GNS[1]<<-CO[1] - UB[1] - delta_f*K_gov[1]/(1+g_0) - C_gov[1] 
+  H[1]<<-0.835*Y[1] 
+  H_red[1]<<-H[1]
+  DEF[1]<<-(g_0/(1+g_0))*H_e1[1]+(g_0/(1+g_0))*H_e2[1]+(g_0/(1+g_0))*H_u[1]+(g_0/(1+g_0))*H_f1[1]+(g_0/(1+g_0))*H_f2[1]
+  
+  DEF_Y[1]<<-DEF[1]/Y[1]  
+  g_h[1]<<-eta_h*(ur[1] - ur_T)
+  
+  #Emissions and inequality
+  EMIS[1]<<-2.88
+  beta_1[1]<<-beta_1_conv_only/(1+beta_sens*K_II_gov_g[1]/K_II_gov[1]) 
+  beta_2[1]<<-beta_2_conv_only/(1+beta_sens*K_II_gov_g[1]/K_II_gov[1]) 
+  YD_ratio[1]<<-(YD_e[1]/N_e[1])/(YD_u[1]/N_u[1]) 
+  YD_eff_ratio[1]<<-(YD_e_eff[1]/N_e[1])/(YD_u_eff[1]/N_u[1]) 
+  
+  #Additional variables and parameters
+  YD_e[1]<<-YD_e1[1] + YD_e2[1]
+  YD_e_eff[1]<<-YD_e1_eff[1] + YD_e2_eff[1]
+  phi<<-1/s_w-1
+  ps<<-1-s_w
+  p[1]<<-(1+phi)*w[1]/pr[1]
+  K_I_gov[1]<<-K_I_gov_c[1] + K_I_gov_g[1]
+  K_II_gov[1]<<-K_II_gov_c[1] + K_II_gov_g[1]
+  FP[1]<<-FP_1[1] + FP_2[1]
+  C_e[1]<<-C_e1[1] + C_e2[1]
+  C_1_e[1]<<-C_1_e1[1] + C_1_e2[1]
+  C_2_e[1]<<-C_2_e1[1] + C_2_e2[1]
+  C_nonC_govcratio[1]<<-((C_1_e[1]-N_e[1]*cc_1[1])/N_e[1])/((C_1_u[1]-N_u[1]*cc_1[1])/N_u[1]) 
+  SUM_EMIS[1]<<-0 + EMIS[1] 
+  y_1[1]<<-Y_1[1]/p[1]
+  y_2[1]<<-Y_2[1]/p[1]
+  y[1]<<-Y[1]/p[1]
+  NFP[1]<<-NFP_1[1] + NFP_2[1]
+  RFP[1]<<-RFP_1[1] + RFP_2[1]
+  DFP[1]<<-DFP_1[1] + DFP_2[1]
+  g_Y[1]<<-g_0
+  g_Y_1[1]<<-g_0
+  g_Y_2[1]<<-g_0
+  g_I_1_pri[1]<<-g_0
+  g_I_2_pri[1]<<-g_0
+  g_I_pri[1]<<-g_0
+  g_I_gov[1]<<-g_0
+  g_I_I_gov_c[1]<<-g_0
+  g_I_I_gov_g[1]<<-g_0
+  g_I_II_gov_c[1]<<-g_0
+  g_I_II_gov_g[1]<<-g_0
+  g_K_pri[1]<<-g_0
+  g_K_1_pri[1]<<-g_0
+  g_K_2_pri[1]<<-g_0
+  g_K_I_gov[1]<<-g_0
+  g_K_I_gov_c[1]<<-g_0
+  g_K_I_gov_g[1]<<-g_0
+  g_K_II_gov_c[1]<<-g_0
+  g_K_II_gov_g[1]<<-g_0
+  g_K_II_gov[1]<<-g_0
+  g_C_1_pri[1]<<-g_0
+  g_C_2_pri[1]<<-g_0
+  g_C_pri[1]<<-g_0
+  g_C_1u[1]<<-g_0
+  g_C_1e1[1]<<-g_0
+  g_C_1e2[1]<<-g_0
+  g_C_2u[1]<<-g_0
+  g_C_2e1[1]<<-g_0
+  g_C_2e2[1]<<-g_0
+  g_YD_e1[1]<<-g_0
+  g_YD_e2[1]<<-g_0
+  g_YD_u[1]<<-g_0
+  g_H_u[1]<<-g_0
+  g_H_e1[1]<<-g_0
+  g_H_e2[1]<<-g_0
+  g_H_f1[1]<<-g_0
+  g_H_f2[1]<<-g_0
+  K[1]<<-K_pri[1]+K_gov[1]
+  K_pri[1]<<-K_1_pri[1]+K_2_pri[1]
+  r_1[1]<<-FP_1[1]/K_1_pri[1]
+  r_2[1]<<-FP_2[1]/K_2_pri[1]
+  H_Y[1]<<-H[1]/Y[1]
+  C_1_e1_N_e1[1]<<-C_1_e1[1]/N_e1[1]
+  C_1_e2_N_e2[1]<<-C_1_e2[1]/N_e2[1]
+  C_1_u_N_u[1]<<-C_1_u[1]/N_u[1]
+  C_2_e1_N_e1[1]<<-C_2_e1[1]/N_e1[1]
+  C_2_e2_N_e2[1]<<-C_2_e2[1]/N_e2[1]
+  C_2_u_N_u[1]<<-C_2_u[1]/N_u[1]
+  g_Y_per[1]<<-g_Y[1]*100
+  ur_per[1]<<-ur[1]*100
+  DEF_Y_per[1]<<-DEF_Y[1]*100
+  H_Y_per[1]<<-H_Y[1]*100
+  I_I_gov_g_change[1]<<-(I_I_gov_g[1] - I_I_gov_g[1]/(1+g_0))/(I_I_gov_g[1]/(1+g_0))*100
+  I_II_gov_g_change[1]<<-(I_II_gov_g[1] - I_II_gov_g[1]/(1+g_0))/(I_II_gov_g[1]/(1+g_0))*100
+  C_2_change[1]<<-(C_2_pri[1] - C_2_pri[1]/(1+g_0))/(C_2_pri[1]/(1+g_0))*100
+  YDeffe1_Ne1[1]<<-YD_e1_eff[1]/N_e1[1]
+  YDeffe2_Ne2[1]<<-YD_e2_eff[1]/N_e2[1]
+  YDeffe_Ne[1]<<-(YD_e1_eff[1]+YD_e2_eff[1])/N_e[1]
+  YDeffu_Nu[1]<<-YD_u_eff[1]/N_u[1]
+  KpgI_KpI[1]<<-K_I_gov_g[1]/K_I_gov[1]
+  KpgII_KpII[1]<<-K_II_gov_g[1]/K_II_gov[1]
+  g_YD_u_eff[1]<<-g_0
+  g_YD_e1_eff[1]<<-g_0
+  g_YD_e2_eff[1]<<-g_0
+  I_I_gov_g_cum[1]<<-I_I_gov_g[1]
+  I_II_gov_g_cum[1]<<-I_II_gov_g[1]
+  C_2_cum[1]<<-C_2_pri[1]
+  r_1_per[1]<<-r_1[1]*100
+  r_2_per[1]<<-r_2[1]*100
+  eta_xi<<-0     
+  eta_tau_w<<-0   
+  eta_tau_f<<-0  
+  g_xi[1]<<-eta_xi*(DEF_Y[1] - DEF_Y_bar)
+  g_tau_w[1]<<-eta_tau_w*(DEF_Y[1] - DEF_Y_bar)
+  g_tau_f[1]<<-eta_tau_f*(DEF_Y[1] - DEF_Y_bar)
+  g_DFP_1[1]<<-g_0
+  g_DFP_2[1]<<-g_0
+  g_DFP[1]<<-g_0
+}
+```
+
+Parameters for scenarios
+
+```{r}
+####################################
+#SHOCK 2: Type I investment shock
+####################################
+Parameters_shock2a<-function(){
+  dummy_govgi<<-1
+  dummy_govgi_dep<<-1
+  gov_Ig[10]<<-2*(I_I_gov_g[1]-delta_pg*K_I_gov_g[1]/(1+g_0))/(K_I_gov_g[1]/(1+g_0))
+}
+Parameters_shock2b<-function(){
+  dummy_govgi<<-0
+  dummy_govgi_dep<<-1
+}
+#####################################
+#SHOCK 3: Type II investment shock
+#####################################
+Parameters_shock3<-function(){
+  lambda<<-0.8
+}
+################################################
+#SHOCK 4: Type I and Type II investment shock
+################################################
+Parameters_shock4a<-function(){
+  dummy_govgi<<-1
+  dummy_govgi_dep<<-1
+  gov_Ig[10]<<-2*(I_I_gov_g[1]-delta_pg*K_I_gov_g[1]/(1+g_0))/(K_I_gov_g[1]/(1+g_0))
+  lambda<<-0.8
+}
+Parameters_shock4b<-function(){
+  dummy_govgi<<-0
+  dummy_govgi_dep<<-1
+  lambda<<-0.8
+}
+################################################
+#SHOCK 5: Change in consumption patterns shock
+################################################
+Parameters_shock5a<-function(){
+  dummy_sigma<<-1
+  eta_h<<- -0.05 
+}
+Parameters_shock5b<-function(){
+  dummy_sigma<<-0
+  eta_h<<- 0 
+}
+########################
+#SHOCK 6: All shocks
+########################
+Parameters_shock6a<-function(){
+  dummy_sigma<<-1
+  eta_h<<- -0.05
+  dummy_govgi<<-1
+  dummy_govgi_dep<<-1
+  gov_Ig[10]<<-2*(I_I_gov_g[1]-delta_pg*K_I_gov_g[1]/(1+g_0))/(K_I_gov_g[1]/(1+g_0))
+  lambda<<-0.8
+}
+Parameters_shock6b<-function(){
+  dummy_sigma<<-0
+  eta_h<<- 0        
+  dummy_govgi<<-0
+  dummy_govgi_dep<<-1
+  lambda<<-0.8
+}
+####################
+#BASELINE PARAMETERS
+####################
+Parameters_baseline<-function(){
+  alpha_1<<-0.05
+  prop_cc1<<-0.2 #proportion of cc_1 in C_1
+  sigma_pot_max<<-0.8
+  } 
+#####################
+#SENSITIVITY - Low multiplier
+#####################
+Parameters_sensitivity1<-function(){
+  alpha_1<<-0.05*(1-0.2)
+  prop_cc1<<-0.2*(1+0.99) #proportion of cc_1 in C_1
+  sigma_pot_max<<-0.8
+  }
+######################
+#SENSITIVITY - High multiplier
+######################
+Parameters_sensitivity2<-function(){
+  alpha_1<<-0.05*(1+0.2)
+  prop_cc1<<-0.2*(1-0.99) #proportion of cc_1 in C_1
+  sigma_pot_max<<-0.8
+  }
+#####################
+#SENSITIVITY - Low responsiveness
+#####################
+Parameters_sensitivity3<-function(){
+  alpha_1<<-0.05
+  prop_cc1<<-0.2 #proportion of cc_1 in C_1
+  sigma_pot_max<<-0.8*(1-0.2)
+  }
+######################
+#SENSITIVITY - High responsiveness
+######################
+Parameters_sensitivity4<-function(){
+  alpha_1<<-0.05
+  prop_cc1<<-0.2 #proportion of cc_1 in C_1
+  sigma_pot_max<<-0.8*(1+0.2)
+}
+```
+
+Vectors for endogenous variables
+
+```{r}
+for (v in 1:length(Symbols)){assign(noquote(paste(Symbols[v])), vector(length=T))}
+```
+
+Run the model and save the results
+
+```{r}
+for (v in 1:length(Symbols)){assign(noquote(paste(Symbols[v])), vector(length=T))}
+
+##############
+#RUN THE MODEL
+##############
+for (j in 1:Scenarios){
+  if (j<=6) {for (iterations in 1:20){Parameters_baseline () & Parameters_InitialValues()}}
+  if (j>6 & j<=8) {for (iterations in 1:20){Parameters_sensitivity1 ()& Parameters_InitialValues()}}
+  if (j>8 & j<=10) {for (iterations in 1:20){Parameters_sensitivity2 ()& Parameters_InitialValues()}}
+  if (j>10 & j<=12) {for (iterations in 1:20){Parameters_sensitivity3 ()& Parameters_InitialValues()}}
+  if (j>12) {for (iterations in 1:20){Parameters_sensitivity4 () & Parameters_InitialValues()}}
+  
+  for (i in 2:T){
+    for (iterations in 1:20){Equations(t=i)}
+    if (j==2 & (i>=10 & i<=50)){Parameters_shock2a()}
+    if (j==2 & (i>50 )){Parameters_shock2b()}
+    if (j==3 & i>=10) {Parameters_shock3()}
+    if (j==4 & (i>=10 & i<=50)){Parameters_shock4a()}
+    if (j==4 & (i>50 )){Parameters_shock4b()}
+    if (j==5 & (i>=10 & i<=50)){Parameters_shock5a()}
+    if (j==5 & (i>50 )){Parameters_shock5b()}
+    if (j==6 & (i>=10 & i<=50)){Parameters_shock6a()}
+    if (j==6 & (i>50 )){Parameters_shock6b()}
+    #Sensitivity High multiplier
+    if (j==8 & (i>=10 & i<=50)){Parameters_shock2a()}
+    if (j==8 & (i>50 )){Parameters_shock2b()}
+    #Sensitivity Low multiplier
+    if (j==10 & (i>=10 & i<=50)){Parameters_shock2a()}
+    if (j==10 & (i>50 )){Parameters_shock2b() }
+    #Sensitivity High multiplier
+    if (j==12 & (i>=10 & i<=50)){Parameters_shock2a()}
+    if (j==12 & (i>50 )){Parameters_shock2b()}
+    #Sensitivity Low multiplier
+    if (j==14 & (i>=10 & i<=50)){Parameters_shock2a()}
+    if (j==14 & (i>50 )){Parameters_shock2b() }
+    
+  }
+#################
+#SAVE THE RESULTS
+#################
+  matrixname<-paste("Table",j, sep="")
+  values<-setNames(data.frame(matrix(ncol = length(Symbols), nrow = T)), Symbols)
+  for (v in 1:length(Symbols)){values[,v]<-eval(parse(text=(paste(noquote(Symbols[v])))))}
+  assign (matrixname,round(values, 10))
+  
+  matrixname<-paste("Variables",j, sep="")
+  assign (matrixname, (round(cbind(C_gov,C_pri,C_1_e1,C_1_e2,C_1_gov,C_1_pri,C_1_u,C_2_e1,C_2_e2,C_2_gov,C_2_pri, C_2_u,cc_1,cc_2,cc_2_WE,CO,DEF,DEF_Y,DFP_1,DFP_2,EMIS,FP_1,FP_2,GNS,g_h,g_pr,g_Y,h,H,H_red,H_e1,H_e2,H_f1,H_f2,H_u,I_gov,I_gov_g,I_I_gov,I_I_gov_c,I_I_gov_g,I_II_gov,I_II_gov_c,I_II_gov_g,I,I_pri,I_1_pri,I_2_pri,K_gov,K_I_gov_c,K_I_gov_g,K_II_gov_c,K_II_gov_g,K_1_pri,K_2_pri,N_e,N_e1,N_e2,N_u,NFP_1,NFP_2,pr,RFP_1,RFP_2,u_1,u_2,ur,UB,ub,w,WB_1,WB_2,WT_1,WT_2,Y,Y_1,Y_1_fc,Y_2,Y_2_fc,YD_e1,YD_e2,YD_u,YD_e1_eff,YD_e2_eff,YD_u_eff,YD_ratio,YD_eff_ratio,beta_1,beta_2,sigma,sigma_pot), digits=10)))
+  
+  matrixname<-paste("Parameters",j, sep="")
+  assign (matrixname, (round(cbind(c_h_e1,c_h_e2,c_h_u,c_yde_e1,c_yde_e2,c_yde_u,g_0,gov,gov_Ic,gov_Ig,gov_II,N,pr_0,pr_1,prop_C_1_gov,s_f_1,s_f_2,SI,s_w,u_T,ur_T,v_1,v_2,alpha_01,alpha_02,alpha_1,delta_f,eta_h,lambda,xi,tau_f,tau_w, beta2_higher_beta1,sigma_pot_max,sigma_conv_only,prop_cc1), digits=10)))
+  
+  write.csv(get(paste0("Table",j)), paste0("Table",j,".csv"))
+  write.csv(get(paste0("Variables",j)), paste0("Variables",j,".csv"))
+  write.csv(get(paste0("Parameters",j)), paste0("Parameters",j,".csv"))
+}
+
+```
+
+Chart info
+
+```{r}
+library(ggplot2)
+library(reshape2)
+library(ggthemes) 
+library (showtext)
+library (sysfonts)
+library (showtextdb)
+font_add_google("lato") 
+showtext_auto()
+
+Colour1="#000000" 
+Colour2="#009E73" 
+Colour3="#D55E00" 
+Colour4="#0072B2"
+Linetype1="solid"
+Linetype2="solid" 
+Linetype3="solid"
+Linetype4="solid"
+pch1=26
+pch2=26
+pch3=26
+pch4=26
+Size1=0.8
+Size2=0.8
+Size3=0.8
+Size4=0.8
+Scenario1="Baseline"
+Scenario2="Green Public Investment (GPI) I"
+Scenario3="Green Public Investment (GPI) II"
+Scenario4="Green Public Investment (GPI) I+II"
+Scenario5="Transition to sufficiency (TS)"
+Scenario6="GPI I+II & TS"
+Scenario8="GPI I - Lower multiplier"
+Scenario10="GPI I - Higher multiplier"
+Scenario12="GPI I - Lower consumption responsiveness"
+Scenario14="GPI I - Higher consumption responsiveness"
+
+
+Chart3<-function(fig_title, variable, label, min, max, sce1, sce2, sce3, legend_x, legend_y){
+  eval(parse(text=(paste0("Line1=Table", sce1, "[,c('",variable,"')]")))) 
+  eval(parse(text=(paste0("Line2=Table", sce2, "[,c('",variable,"')]")))) 
+  eval(parse(text=(paste0("Line3=Table", sce3, "[,c('",variable,"')]")))) 
+  dataframe<<-data.frame(Periods, Line1, Line2, Line3)
+  data_long <- melt(dataframe, id = "Periods")
+  
+  plot<-ggplot(data=data_long, aes(x=Periods, y=value, colour = variable, linetype=variable, size=variable, shape=variable)) + 
+    geom_line()+
+    geom_point() +
+    scale_color_manual(name=NULL, labels=c(eval(parse(text=(paste0("Scenario",sce1)))), eval(parse(text=(paste0("Scenario",sce2)))), eval(parse(text=(paste0("Scenario",sce3))))), 
+                      values=c(Colour1, Colour2, Colour3))+
+    scale_linetype_manual(name=NULL, labels=c(eval(parse(text=(paste0("Scenario",sce1)))), eval(parse(text=(paste0("Scenario",sce2)))), eval(parse(text=(paste0("Scenario",sce3))))), 
+                            values=c(Linetype1, Linetype2, Linetype3)) +
+    scale_size_manual(name=NULL, labels=c(eval(parse(text=(paste0("Scenario",sce1)))), eval(parse(text=(paste0("Scenario",sce2)))), eval(parse(text=(paste0("Scenario",sce3))))),
+                        values=c(Size1, Size2, Size3))  +
+    scale_shape_manual(name=NULL, labels=c(eval(parse(text=(paste0("Scenario",sce1)))), eval(parse(text=(paste0("Scenario",sce2)))), eval(parse(text=(paste0("Scenario",sce3))))), 
+                         values=as.numeric(c(pch1,pch2,pch3)))+
+    theme_bw()+
+    theme(text=element_text(family="lato"),
+          axis.title=element_text(size=31, colour="black"),
+          axis.text=element_text(size=30, colour="black"),
+          axis.ticks = element_line(colour = "black"),
+          legend.position=c(legend_x, legend_y),
+          legend.title=element_blank(),
+          legend.text=element_text(size=30, colour="black"),
+          legend.key.width = unit(1, "cm"),
+          legend.key.height = unit(0, "cm"),
+          legend.key=element_blank(),
+          legend.background=element_blank(),
+          legend.box.background=element_blank(), 
+          plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm"),
+          panel.border=element_rect(color = "black", size=0.8),
+          panel.grid.major = element_line(size = 0.1, linetype = 'solid', colour = "grey"),
+          panel.grid.minor = element_line(size = 0.1, linetype = 'solid', colour = "grey"))+
+    labs(y =label, x ="Period")+
+    geom_rect(aes(xmin = 1, xmax = 100, ymin=min, ymax=max),fill = "transparent")+
+    scale_x_continuous(expand = c(0, 0), breaks=c(10, 20, 30, 40, 50, 60, 70, 80, 90, 100))+
+    scale_y_continuous(expand = c(0, 0))
+   ggsave(fig_title, plot, width=6, height=4, type="cairo", dpi=300)
+}
+
+
+Chart4<-function(fig_title, variable, label, min, max, sce1, sce2, sce3, sce4, legend_x, legend_y){
+  eval(parse(text=(paste0("Line1=Table", sce1, "[,c('",variable,"')]")))) 
+  eval(parse(text=(paste0("Line2=Table", sce2, "[,c('",variable,"')]")))) 
+  eval(parse(text=(paste0("Line3=Table", sce3, "[,c('",variable,"')]")))) 
+  eval(parse(text=(paste0("Line4=Table", sce4, "[,c('",variable,"')]"))))  
+  dataframe<<-data.frame(Periods, Line1, Line2, Line3, Line4)
+  data_long <- melt(dataframe, id = "Periods")
+  
+  plot<-ggplot(data=data_long, aes(x=Periods, y=value, colour = variable, linetype=variable, size=variable, shape=variable)) + 
+    geom_line()+
+    geom_point() +
+    scale_color_manual(name=NULL, labels=c(eval(parse(text=(paste0("Scenario",sce1)))), eval(parse(text=(paste0("Scenario",sce2)))), eval(parse(text=(paste0("Scenario",sce3)))), eval(parse(text=(paste0("Scenario",sce4))))), 
+                       values=c(Colour1, Colour2, Colour3, Colour4))+
+    scale_linetype_manual(name=NULL, labels=c(eval(parse(text=(paste0("Scenario",sce1)))), eval(parse(text=(paste0("Scenario",sce2)))), eval(parse(text=(paste0("Scenario",sce3)))), eval(parse(text=(paste0("Scenario",sce4))))), 
+                          values=c(Linetype1, Linetype2, Linetype3, Linetype4)) +
+    scale_size_manual(name=NULL, labels=c(eval(parse(text=(paste0("Scenario",sce1)))), eval(parse(text=(paste0("Scenario",sce2)))), eval(parse(text=(paste0("Scenario",sce3)))), eval(parse(text=(paste0("Scenario",sce4))))),
+                      values=c(Size1, Size2, Size3, Size4))  +
+    scale_shape_manual(name=NULL, labels=c(eval(parse(text=(paste0("Scenario",sce1)))), eval(parse(text=(paste0("Scenario",sce2)))), eval(parse(text=(paste0("Scenario",sce3)))), eval(parse(text=(paste0("Scenario",sce4))))), 
+                       values=as.numeric(c(pch1,pch2,pch3, pch4)))+
+    theme_bw()+
+    theme(text=element_text(family="lato"),
+          axis.title=element_text(size=31, colour="black"),
+          axis.text=element_text(size=30, colour="black"),
+          axis.ticks = element_line(colour = "black"),
+          legend.position=c(legend_x, legend_y),
+          legend.title=element_blank(),
+          legend.text=element_text(size=30, colour="black"),
+          legend.key.width = unit(1, "cm"),
+          legend.key.height = unit(0, "cm"),
+          legend.key=element_blank(),
+          legend.background=element_blank(),
+          legend.box.background=element_blank(), 
+          plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm"),
+          panel.border=element_rect(color = "black", size=0.8),
+          panel.grid.major = element_line(size = 0.1, linetype = 'solid', colour = "grey"),
+          panel.grid.minor = element_line(size = 0.1, linetype = 'solid', colour = "grey"))+
+    labs(y =label, x ="Period")+
+    geom_rect(aes(xmin = 1, xmax = 100, ymin=min, ymax=max),fill = "transparent")+
+    scale_x_continuous(expand = c(0, 0), breaks=c(10, 20, 30, 40, 50, 60, 70, 80, 90, 100))+
+    scale_y_continuous(expand = c(0, 0))
+    ggsave(fig_title, plot, width=6, height=4, type="cairo", dpi=300)
+}
+```
+
+Create charts
+
+```{r}
+#Figure 2
+Chart3(fig_title="Fig2-a-Ratio of green public to total capital-type I.jpeg", variable='KpgI_KpI',label="Green-to-total capital ratio (Type I)",min=0,max=1.05,sce1=1, sce2=2, sce3=3, legend_x=0.25, legend_y=0.92)
+Chart3(fig_title="Fig2-b-sigma.jpeg", variable='sigma',label="Consumption adjustment factor",min=0,max=0.9,sce1=1, sce2=2, sce3=3, legend_x=0.25, legend_y=0.92)
+Chart3(fig_title='Fig2-c-Growth_rate_of_output.jpeg', variable='g_Y_per',label='Growth rate of output (%)',min=0.5,max=2,sce1=1, sce2=2, sce3=3, legend_x=0.7, legend_y=0.85)
+Chart3(fig_title="Fig2-d-Unemployment_rate.jpeg", variable='ur_per',label="Unemployment rate (%)",min=5.5,max=7.5, sce1=1, sce2=2, sce3=3,  legend_x=0.25, legend_y=0.92)
+Chart3(fig_title="Fig2-e-beta_1.jpeg", variable='beta_1',label=expression("Carbon int., sector 1 (GtCO" [2]*"/EUR tr)"),min=0,max=0.21,sce1=1, sce2=2, sce3=3, legend_x=0.7, legend_y=0.85)
+Chart3(fig_title="Fig2-f-Emissions.jpeg", variable='EMIS',label=expression("CO" [2]*" emissions (GtCO" [2]*")"),min=0,max=8, sce1=1, sce2=2, sce3=3, legend_x=0.25, legend_y=0.92)
+Chart3(fig_title="Fig2-g-Consumption 1.jpeg", variable='C_1_pri',label="Total consumption, good 1 (EUR tr)",min=0,max=20,sce1=1, sce2=2, sce3=3, legend_x=0.25, legend_y=0.85)
+Chart3(fig_title="Fig2-h-Consumption 2.jpeg", variable='C_2_pri',label="Total consumption, good 2 (EUR tr)",min=0,max=10,sce1=1, sce2=2, sce3=3, legend_x=0.25, legend_y=0.85)
+Chart3(fig_title="Fig2-i-Effective disposable income of employed.jpeg", variable='YD_e_eff',label="Eff. disp. income, empl. (EUR tr)",min=2,max=18,sce1=1, sce2=2, sce3=3, legend_x=0.25, legend_y=0.85)
+Chart3(fig_title="Fig2-j-Effective disposable income of unemployed.jpeg", variable='YD_u_eff',label="Eff. disp. income, unem. (EUR tr)",min=0,max=1,sce1=1, sce2=2, sce3=3, legend_x=0.25, legend_y=0.92)
+Chart3(fig_title="Fig2-k-Effective_disposable_income_per_capita_ratio.jpeg", variable='YD_eff_ratio',label="Effective income gap ratio",min=1,max=1.75,sce1=1, sce2=2, sce3=3, legend_x=0.7, legend_y=0.85)
+Chart3(fig_title="Fig2-l-Firm_2_rate_of_profit.jpeg", variable='r_2_per',label="Profit rate (%) in sector 2",min=8,max=14,sce1=1, sce2=2, sce3=3, legend_x=0.7, legend_y=0.85)
+Chart3(fig_title="Fig2-m-Deficit_to_GDP.jpeg", variable='DEF_Y_per',label="Deficit-to-GDP ratio (%)",min=0,max=2,sce1=1, sce2=2, sce3=3, legend_x=0.25, legend_y=0.2)
+Chart3(fig_title="Fig2-n-Debt_GDP_ratio.jpeg", variable='H_Y_per',label="Debt-to-GDP ratio (%)",min=60,max=140,sce1=1, sce2=2, sce3=3, legend_x=0.7, legend_y=0.85)
+#Figure 3
+Chart4(fig_title="Fig3-a-Ratio of green public to total capital-type I.jpeg", variable='KpgI_KpI',label="Green-to-total capital (Type I)",min=0,max=1.05,sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.25, legend_y=0.92)
+Chart4(fig_title="Fig3-b-sigma.jpeg", variable='sigma',label="Consumption adjustment factor",min=0,max=0.9,sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.25, legend_y=0.92)
+Chart4(fig_title='Fig3-c-Growth_rate_of_output.jpeg', variable='g_Y_per',label='Growth rate of output (%)',min=0.5,max=2,sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="Fig3-d-Unemployment_rate.jpeg", variable='ur_per',label="Unemployment rate (%)",min=5.5,max=7.5, sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.25, legend_y=0.92)
+Chart4(fig_title="Fig3-e-beta_1.jpeg", variable='beta_1',label=expression("Carbon int., sector 1 (GtCO" [2]*"/EUR tr)"),min=0,max=0.21,sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="Fig3-f-Emissions.jpeg", variable='EMIS',label=expression("CO" [2]*" emissions (GtCO" [2]*")"),min=0,max=8, sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.25, legend_y=0.92)
+Chart4(fig_title="Fig3-g-Consumption 1.jpeg", variable='C_1_pri',label="Total consumption, good 1 (EUR tr)",min=0,max=20,sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.25, legend_y=0.85)
+Chart4(fig_title="Fig3-h-Consumption 2.jpeg", variable='C_2_pri',label="Total consumption, good 2 (EUR tr)",min=0,max=10,sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.25, legend_y=0.85)
+Chart4(fig_title="Fig3-i-Effective disposable income of employed.jpeg", variable='YD_e_eff',label="Eff. disp. income, empl. (EUR tr)",min=2,max=18,sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.25, legend_y=0.85)
+Chart4(fig_title="Fig3-j-Effective disposable income of unemployed.jpeg", variable='YD_u_eff',label="Eff. disp. income, unem. (EUR tr)",min=0,max=1,sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.25, legend_y=0.85)
+Chart4(fig_title="Fig3-k-Effective_disposable_income_per_capita_ratio.jpeg", variable='YD_eff_ratio',label="Effective income gap ratio",min=1,max=1.75,sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="Fig3-l-Firm_2_rate_of_profit.jpeg", variable='r_2_per',label="Profit rate (%) in sector 2",min=8,max=14,sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.7, legend_y=0.9)
+Chart4(fig_title="Fig3-m-Deficit_to_GDP.jpeg", variable='DEF_Y_per',label="Deficit-to-GDP ratio (%)",min=0,max=2,sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.25, legend_y=0.2)
+Chart4(fig_title="Fig3-n-Debt_GDP_ratio.jpeg", variable='H_Y_per',label="Debt-to-GDP ratio (%)",min=60,max=140,sce1=1, sce2=4, sce3=5, sce4=6, legend_x=0.7, legend_y=0.85)
+#Figure B.1
+Chart4(fig_title="FigB.1-a-Emissions.jpeg", variable='EMIS',label=expression("CO" [2]*" emissions (GtCO" [2]*")"),min=2,max=8, sce1=1, sce2=2, sce3=8, sce4=10, legend_x=0.25, legend_y=0.92)
+Chart4(fig_title="FigB.1-b-sigma.jpeg", variable='sigma',label="Consumption adjustment factor",min=0,max=0.25,sce1=1, sce2=2, sce3=8, sce4=10, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title='FigB.1-c-Growth_rate_of_output.jpeg', variable='g_Y_per',label='Growth rate of output (%)',min=0.5,max=1.5,sce1=1, sce2=2, sce3=8, sce4=10, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="FigB.1-d-Deficit_to_GDP.jpeg", variable='DEF_Y_per',label="Deficit-to-GDP ratio (%)",min=0,max=2,sce1=1, sce2=2, sce3=8, sce4=10, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="FigB.1-e-Debt_GDP_ratio.jpeg", variable='H_Y_per',label="Debt-to-GDP ratio (%)",min=60,max=100,sce1=1, sce2=2, sce3=8, sce4=10, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="FigB.1-f-Consumption 2.jpeg", variable='C_2_pri',label="Total consumption, good 2 (EUR tr)",min=0,max=10,sce1=1, sce2=2, sce3=8, sce4=10, legend_x=0.3, legend_y=0.92)
+#Figure B.2
+Chart4(fig_title="FigB.2-a-Emissions.jpeg", variable='EMIS',label=expression("CO" [2]*" emissions (GtCO" [2]*")"),min=2,max=8, sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.3, legend_y=0.92)
+Chart4(fig_title="FigB.2-b-sigma.jpeg", variable='sigma',label="Consumption adjustment factor",min=0,max=0.25,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title='FigB.2-c-Growth_rate_of_output.jpeg', variable='g_Y_per',label='Growth rate of output (%)',min=0.5,max=1.5,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="FigB.2-d-Deficit_to_GDP.jpeg", variable='DEF_Y_per',label="Deficit-to-GDP ratio (%)",min=0,max=2,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="FigB.2-e-Debt_GDP_ratio.jpeg", variable='H_Y_per',label="Debt-to-GDP ratio (%)",min=60,max=100,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="FigB.2-f-Consumption 2.jpeg", variable='C_2_pri',label="Total consumption, good 2 (EUR tr)",min=0,max=10,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.3, legend_y=0.92)
+Chart4(fig_title="FigB.2-g-Firm_2_rate_of_profit.jpeg", variable='r_2_per',label="Profit rate (%) in sector 2",min=8,max=16,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="FigB.2-h-Unemployment_rate.jpeg", variable='ur_per',label="Unemployment rate (%)",min=5,max=7.5, sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="FigB.2-i-Ratio of green public to total capital-type I.jpeg", variable='KpgI_KpI',label="Green-to-total capital (Type I)",min=0,max=1.05,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="FigB.2-j-beta_1.jpeg", variable='beta_1',label=expression("Carbon int., sector 1 (GtCO" [2]*"/EUR tr)"),min=0,max=0.21,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="FigB.2-k-Consumption 1.jpeg", variable='C_1_pri',label="Total consumption, good 1 (EUR tr)",min=0,max=20,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="FigB.2-l-Effective disposable income of employed.jpeg", variable='YD_e_eff',label="Eff. disp. income, empl. (EUR tr)",min=0,max=15,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="FigB.2-m-Effective disposable income of unemployed.jpeg", variable='YD_u_eff',label="Eff. disp. income, unem. (EUR tr)",min=0,max=1,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title="FigB.2-n-Effective_disposable_income_per_capita_ratio.jpeg", variable='YD_eff_ratio',label="Effective income gap ratio",min=1,max=2,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title='FigB.2-o-Growth_rate_of_consumption_1.jpeg', variable='g_C_1_pri',label='Growth rate of consumption 1',min=-0.005,max=0.02,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title='FigB.2-p-Growth_rate_of_consumption_2.jpeg', variable='g_C_2_pri',label='Growth rate of consumption 2',min=-0.005,max=0.02,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title='FigB.2-q-Growth_rate_of_investment_1.jpeg', variable='g_I_1_pri',label='Growth rate of investment 1',min=-0.005,max=0.02,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title='FigB.2-r-Growth_rate_of_investment_2.jpeg', variable='g_I_2_pri',label='Growth rate of investment 2',min=-0.005,max=0.02,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+Chart4(fig_title='FigB.2-s-Growth_rate_of_DFP.jpeg', variable='g_DFP',label='Growth rate of distributed profits',min=-0.005,max=0.02,sce1=1, sce2=2, sce3=12, sce4=14, legend_x=0.7, legend_y=0.85)
+
+```
